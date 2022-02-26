@@ -1,11 +1,7 @@
 package uos.dev.restcli
 
 import com.github.ajalt.mordant.TermColors
-import com.google.gson.Gson
 import mu.KotlinLogging
-import okhttp3.*
-import okhttp3.internal.connection.Exchange
-import org.apache.commons.beanutils.BeanUtils
 import uos.dev.restcli.configs.DefaultMessageObfuscator
 import uos.dev.restcli.configs.EnvironmentConfigs
 import uos.dev.restcli.configs.MessageObfuscator
@@ -17,30 +13,6 @@ import uos.dev.restcli.parser.Request
 import uos.dev.restcli.parser.RequestEnvironmentInjector
 import uos.dev.restcli.report.*
 import java.io.PrintWriter
-import okhttp3.Protocol as Protocol1
-
-data class TestCase(
-    private val name: String,
-    var caseitems: MutableList<CaseItem> = ArrayList()
-
-) {
-
-
-    fun addRequest(name: String, request: Request, response: IResponse?) {
-        this.caseitems.add(CaseItem(name, request, response))
-    }
-
-//    override fun toString(): String = "TestCases(name=$name, requests=$caseitems)"
-
-
-}
-
-data class CaseItem(
-    private val name: String,
-    var request: Request,
-    var response: IResponse?
-
-)
 
 
 class HttpRequestFilesExecutor constructor(
@@ -60,7 +32,7 @@ class HttpRequestFilesExecutor constructor(
         RequestEnvironmentInjector()
     private val logger = KotlinLogging.logger {}
     private val t: TermColors = TermColors()
-    public var testCases: MutableList<TestCase> = ArrayList()
+    var testCases: MutableList<TestCase> = ArrayList()
         get() = field
 
 
@@ -191,19 +163,8 @@ class HttpRequestFilesExecutor constructor(
     ) {
         runCatching { executor.execute(request) }
             .onSuccess { response ->
-                jsClient.updateResponse(response)
-                logger.info ("{}",response.body?.byteString())
-                var resp =   IResponse(
-                    protocol= response.protocol,
-                    message= response.message,
-                    code= response.code,
-                    handshake= response.handshake,
-                    headers= response.headers,
-                    body= null,
-                    sentRequestAtMillis= response.sentRequestAtMillis,
-                    receivedResponseAtMillis= response.receivedResponseAtMillis,
-                )
-                testCase.addRequest("", request, resp)
+                var caseItem = jsClient.updateResponse(response)
+                testCase.addRequest(caseItem)
                 request.scriptHandler?.let { script ->
                     val testTitle = t.bold("TESTS:")
                     logger.info("\n$testTitle")

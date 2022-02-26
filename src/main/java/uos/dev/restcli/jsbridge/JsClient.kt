@@ -8,6 +8,8 @@ import okhttp3.Response
 import okhttp3.ResponseBody
 import org.apache.commons.text.StringEscapeUtils
 import org.intellij.lang.annotations.Language
+import uos.dev.restcli.report.CaseItem
+import uos.dev.restcli.report.IResponse
 import javax.script.ScriptEngine
 import javax.script.ScriptEngineManager
 
@@ -27,13 +29,14 @@ class JsClient(private val engine: ScriptEngine) {
     }
 
     // TODO: Make abstract from okhttp response.
-    fun updateResponse(response: Response) {
+    fun updateResponse(response: Response): CaseItem {
         val updateHeaderScriptBuilder = StringBuilder()
         updateHeaderScriptBuilder.append("response.headers = new ResponseHeaders();")
+        var headers = HashMap<String, String>()
         response.headers.forEach {
             val headerName = StringEscapeUtils.escapeEcmaScript(it.first)
             val headerValue = StringEscapeUtils.escapeEcmaScript(it.second)
-
+            headers.put(headerName, headerValue)
             @Language("JavaScript")
             val script = """response.headers.add("$headerName", "$headerValue");"""
             updateHeaderScriptBuilder.append(script)
@@ -78,6 +81,18 @@ class JsClient(private val engine: ScriptEngine) {
         log("=================================")
         engine.eval(script)
         engine.eval("response.contentType")
+       var resp =  IResponse(
+
+            protocol = response.protocol,
+            message = response.message,
+            code = response.code,
+            headers = headers,
+            body = rawBody,
+            sentRequestAtMillis = response.sentRequestAtMillis,
+            receivedResponseAtMillis = response.receivedResponseAtMillis,
+        )
+
+        return CaseItem("",response.request,resp)
     }
 
     private val ResponseBody.isJsonContent: Boolean
