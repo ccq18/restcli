@@ -99,6 +99,7 @@ class HttpRequestFilesExecutor constructor(
         }
 
         var testCase = TestCase(httpFilePath)
+        testCases.add(testCase)
         var requestIndex = -1
         while (requestIndex < requests.size) {
             val requestName = TestReportStore.nextRequestName
@@ -153,7 +154,7 @@ class HttpRequestFilesExecutor constructor(
             }
 
         }
-        testCases.add(testCase)
+
     }
 
     private fun executeSingleRequest(
