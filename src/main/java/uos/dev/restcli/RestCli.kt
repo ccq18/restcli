@@ -25,8 +25,8 @@ class RestCli : Callable<Int> {
     var environmentName: String? = null
 
     @Option(
-        names = ["-r", "--response-file"],
-        description = ["Name of the environment in config file ", "(http-client.env.json/http-client.private.env.json)."]
+        names = ["-f", "--response-file"],
+        description = ["Response file path "]
     )
     var responsefile: String? = null
 

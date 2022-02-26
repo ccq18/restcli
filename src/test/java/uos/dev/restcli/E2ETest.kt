@@ -34,7 +34,7 @@ class E2ETest {
             httpFilePaths = arrayOf(getResourcePath("/requests/${fileName}"))
             environmentFilesDirectory = getResourcePath("/requests/")
             decorator = ConfigDecorator.THREE_STAR
-            responsefile=getResourcePath("./resp.json")
+            responsefile="./resp.json"
         }
 
         // When
