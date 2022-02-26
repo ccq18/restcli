@@ -1,11 +1,13 @@
 package uos.dev.restcli
 
 import com.github.ajalt.mordant.TermColors
+import com.google.gson.Gson
 import com.jakewharton.picnic.table
 import mu.KotlinLogging
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import uos.dev.restcli.configs.EnvironmentConfigs
+import java.io.File
 import java.util.concurrent.Callable
 
 
@@ -21,6 +23,12 @@ class RestCli : Callable<Int> {
         description = ["Name of the environment in config file ", "(http-client.env.json/http-client.private.env.json)."]
     )
     var environmentName: String? = null
+
+    @Option(
+        names = ["-r", "--response-file"],
+        description = ["Name of the environment in config file ", "(http-client.env.json/http-client.private.env.json)."]
+    )
+    var responsefile: String? = null
 
     @Option(
         names = ["-d", "--env-dir"],
@@ -83,6 +91,17 @@ class RestCli : Callable<Int> {
             decorator = decorator.toPrivateConfigDecorator()
         )
         executor.run()
+        val gson = Gson()
+        if(responsefile != null){
+            var json = gson.toJson(executor.testCases);
+            logger.info ( "testcases:{}", "json" )
+            val myfile = File(responsefile)
+            myfile.bufferedWriter().use { out ->
+                out.write(json)
+            }
+        }
+
+
         return if (executor.allTestsFinishedWithSuccess()) {
             CommandLine.ExitCode.OK
         } else {

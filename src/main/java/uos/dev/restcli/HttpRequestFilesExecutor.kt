@@ -1,7 +1,11 @@
 package uos.dev.restcli
 
 import com.github.ajalt.mordant.TermColors
+import com.google.gson.Gson
 import mu.KotlinLogging
+import okhttp3.*
+import okhttp3.internal.connection.Exchange
+import org.apache.commons.beanutils.BeanUtils
 import uos.dev.restcli.configs.DefaultMessageObfuscator
 import uos.dev.restcli.configs.EnvironmentConfigs
 import uos.dev.restcli.configs.MessageObfuscator
@@ -11,11 +15,33 @@ import uos.dev.restcli.jsbridge.JsClient
 import uos.dev.restcli.parser.Parser
 import uos.dev.restcli.parser.Request
 import uos.dev.restcli.parser.RequestEnvironmentInjector
-import uos.dev.restcli.report.AsciiArtTestReportGenerator
-import uos.dev.restcli.report.TestGroupReport
-import uos.dev.restcli.report.TestReportPrinter
-import uos.dev.restcli.report.TestReportStore
+import uos.dev.restcli.report.*
 import java.io.PrintWriter
+import okhttp3.Protocol as Protocol1
+
+data class TestCase(
+    private val name: String,
+    var caseitems: MutableList<CaseItem> = ArrayList()
+
+) {
+
+
+    fun addRequest(name: String, request: Request, response: IResponse?) {
+        this.caseitems.add(CaseItem(name, request, response))
+    }
+
+//    override fun toString(): String = "TestCases(name=$name, requests=$caseitems)"
+
+
+}
+
+data class CaseItem(
+    private val name: String,
+    var request: Request,
+    var response: IResponse?
+
+)
+
 
 class HttpRequestFilesExecutor constructor(
     private val httpFilePaths: Array<String>,
@@ -27,12 +53,16 @@ class HttpRequestFilesExecutor constructor(
     private val requestTimeout: Long,
     private val decorator: PrivateConfigDecorator
 ) : Runnable {
+    //    private var testCases: ArrayList<TestCases>()
     private val parser: Parser = Parser()
     private val jsClient: JsClient = JsClient()
     private val requestEnvironmentInjector: RequestEnvironmentInjector =
         RequestEnvironmentInjector()
     private val logger = KotlinLogging.logger {}
     private val t: TermColors = TermColors()
+    public var testCases: MutableList<TestCase> = ArrayList()
+        get() = field
+
 
     override fun run() {
         if (httpFilePaths.isEmpty()) {
@@ -40,7 +70,8 @@ class HttpRequestFilesExecutor constructor(
             return
         }
         val environment =
-            environmentName?.let { EnvironmentLoader().load(environmentFilesDirectory, it) } ?: EnvironmentConfigs()
+            environmentName?.let { EnvironmentLoader().load(environmentFilesDirectory, it) }
+                ?: EnvironmentConfigs()
         val obfuscator = DefaultMessageObfuscator(environment, decorator)
         val executor = OkhttpRequestExecutor(
             logLevel.toOkHttpLoggingLevel(),
@@ -75,6 +106,7 @@ class HttpRequestFilesExecutor constructor(
             .all { it.isPassed }
     }
 
+
     private fun executeHttpRequestFile(
         httpFilePath: String,
         environment: EnvironmentConfigs,
@@ -93,6 +125,9 @@ class HttpRequestFilesExecutor constructor(
             TestReportStore.addTestReport("Parsing", false, e.message, e.message)
             return
         }
+
+        var testCase = TestCase(httpFilePath)
+
         var requestIndex = -1
         while (requestIndex < requests.size) {
             val requestName = TestReportStore.nextRequestName
@@ -133,22 +168,42 @@ class HttpRequestFilesExecutor constructor(
                     httpTestFilePath = httpFilePath,
                     scriptHandlerStartLine = request.scriptHandlerStartLine
                 )
-                TestReportStore.addTestGroupReport(obfuscator.obfuscate(request.requestTarget), trace)
+
+                TestReportStore.addTestGroupReport(
+                    obfuscator.obfuscate(request.requestTarget),
+                    trace
+                )
                 logger.info("\n__________________________________________________\n")
                 logger.info(t.bold("##### ${request.method.name} ${obfuscator.obfuscate(request.requestTarget)} #####"))
-                executeSingleRequest(executor, request)
+                executeSingleRequest(executor, request, testCase)
             }.onFailure {
                 logger.error { t.red(it.message.orEmpty()) }
                 TestReportStore.addTestReport("-", false, it.message, it.message)
             }
-
+            testCases.add(testCase)
         }
     }
 
-    private fun executeSingleRequest(executor: OkhttpRequestExecutor, request: Request) {
+    private fun executeSingleRequest(
+        executor: OkhttpRequestExecutor,
+        request: Request,
+        testCase: TestCase
+    ) {
         runCatching { executor.execute(request) }
             .onSuccess { response ->
                 jsClient.updateResponse(response)
+                logger.info ("{}",response.body?.byteString())
+                var resp =   IResponse(
+                    protocol= response.protocol,
+                    message= response.message,
+                    code= response.code,
+                    handshake= response.handshake,
+                    headers= response.headers,
+                    body= null,
+                    sentRequestAtMillis= response.sentRequestAtMillis,
+                    receivedResponseAtMillis= response.receivedResponseAtMillis,
+                )
+                testCase.addRequest("", request, resp)
                 request.scriptHandler?.let { script ->
                     val testTitle = t.bold("TESTS:")
                     logger.info("\n$testTitle")
