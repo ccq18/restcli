@@ -16,11 +16,7 @@ import uos.dev.restcli.report.TestReportStore
 class E2ETest {
     private val logger = KotlinLogging.logger {}
 
-    /**
-     * Tests execute the http request `fileName` in the test resource folder.
-     * If you are running the test on the IDE, you have to set the working directory point to the test
-     * resource folder.
-     */
+
     @ParameterizedTest
     @CsvSource(
         value = ["demo.http"]
@@ -44,7 +40,34 @@ class E2ETest {
         assertThat(exitCode).isEqualTo(0)
     }
 
+    @ParameterizedTest
+    @CsvSource(
+        value = ["one-test-case.http"]
+    )
+    fun `one test case`(fileName: String) {
+        // Given
+        println("Test file: $fileName")
+        val restCli = RestCli().apply {
+            environmentName = "test"
+            logLevel = HttpLoggingLevel.BODY
+            httpFilePaths = arrayOf(getResourcePath("/requests/${fileName}"))
+            environmentFilesDirectory = getResourcePath("/requests/")
+            decorator = ConfigDecorator.THREE_STAR
+            responsefile="./resp.json"
+        }
 
+        // When
+        val exitCode = restCli.call()
+
+        // Then
+        assertThat(exitCode).isEqualTo(0)
+    }
+
+    /**
+     * Tests execute the http request `fileName` in the test resource folder.
+     * If you are running the test on the IDE, you have to set the working directory point to the test
+     * resource folder.
+     */
     @ParameterizedTest
     @CsvSource(
         value = ["get-requests.http", "post-requests.http", "requests-with-authorization.http", "requests-with-name.http", "requests-with-tests.http"]

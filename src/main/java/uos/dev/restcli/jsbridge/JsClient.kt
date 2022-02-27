@@ -6,9 +6,11 @@ import mu.KotlinLogging
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Response
 import okhttp3.ResponseBody
+import org.apache.commons.beanutils.BeanUtils
 import org.apache.commons.text.StringEscapeUtils
 import org.intellij.lang.annotations.Language
 import uos.dev.restcli.report.CaseItem
+import uos.dev.restcli.report.IRequest
 import uos.dev.restcli.report.IResponse
 import javax.script.ScriptEngine
 import javax.script.ScriptEngineManager
@@ -82,7 +84,6 @@ class JsClient(private val engine: ScriptEngine) {
         engine.eval(script)
         engine.eval("response.contentType")
        var resp =  IResponse(
-
             protocol = response.protocol,
             message = response.message,
             code = response.code,
@@ -92,7 +93,7 @@ class JsClient(private val engine: ScriptEngine) {
             receivedResponseAtMillis = response.receivedResponseAtMillis,
         )
 
-        return CaseItem("",response.request,resp)
+        return CaseItem(response.request.url.toUri().toString(),true,response.request,resp)
     }
 
     private val ResponseBody.isJsonContent: Boolean

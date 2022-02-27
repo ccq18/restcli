@@ -2,6 +2,8 @@ package uos.dev.restcli
 
 import com.github.ajalt.mordant.TermColors
 import mu.KotlinLogging
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import uos.dev.restcli.configs.DefaultMessageObfuscator
 import uos.dev.restcli.configs.EnvironmentConfigs
 import uos.dev.restcli.configs.MessageObfuscator
@@ -13,6 +15,7 @@ import uos.dev.restcli.parser.Request
 import uos.dev.restcli.parser.RequestEnvironmentInjector
 import uos.dev.restcli.report.*
 import java.io.PrintWriter
+import java.net.URL
 
 
 class HttpRequestFilesExecutor constructor(
@@ -25,7 +28,7 @@ class HttpRequestFilesExecutor constructor(
     private val requestTimeout: Long,
     private val decorator: PrivateConfigDecorator
 ) : Runnable {
-    //    private var testCases: ArrayList<TestCases>()
+
     private val parser: Parser = Parser()
     private val jsClient: JsClient = JsClient()
     private val requestEnvironmentInjector: RequestEnvironmentInjector =
@@ -99,6 +102,7 @@ class HttpRequestFilesExecutor constructor(
         }
 
         var testCase = TestCase(httpFilePath)
+        nowtestCase = testCase
         testCases.add(testCase)
         var requestIndex = -1
         while (requestIndex < requests.size) {
@@ -140,7 +144,7 @@ class HttpRequestFilesExecutor constructor(
                     httpTestFilePath = httpFilePath,
                     scriptHandlerStartLine = request.scriptHandlerStartLine
                 )
-
+                //todo
                 TestReportStore.addTestGroupReport(
                     obfuscator.obfuscate(request.requestTarget),
                     trace
@@ -165,19 +169,31 @@ class HttpRequestFilesExecutor constructor(
         runCatching { executor.execute(request) }
             .onSuccess { response ->
                 var caseItem = jsClient.updateResponse(response)
+                nowCaseItem = caseItem
                 testCase.addRequest(caseItem)
-                request.scriptHandler?.let { script ->
-                    val testTitle = t.bold("TESTS:")
-                    logger.info("\n$testTitle")
-                    runCatching {
-                        jsClient.execute(script)
-                    }.onFailure {
-                        logger.error { t.red(it.message.orEmpty()) }
-                        TestReportStore.addTestReport("eval script", false, it.message, script)
+                if (request.scriptHandler != null) {
+                    request.scriptHandler?.let { script ->
+                        val testTitle = t.bold("TESTS:")
+                        logger.info("\n$testTitle")
+                        runCatching {
+                            jsClient.execute(script)
+                        }.onFailure {
+                            logger.error { t.red(it.message.orEmpty()) }
+
+                            TestReportStore.addTestReport("eval script", false, it.message, script)
+                        }
                     }
                 }
+
             }
             .onFailure {
+
+
+//                IRequest(request.method,request.requestTarget,request.httpVersion,request.headers,request.body)
+//                okhttp3.Request(  request.requestTarget.toHttpUrl(),request.method.name,request.headers,null,null)
+                var caseItem = CaseItem(request.requestTarget,false, null, null)
+                nowCaseItem = caseItem
+                testCase.addRequest(caseItem)
                 TestReportStore.addTestReport("Http", false, it.message, it.message)
                 val hasScriptHandler = request.scriptHandler != null
                 if (hasScriptHandler) {
@@ -192,5 +208,8 @@ class HttpRequestFilesExecutor constructor(
          * be end immediately.
          */
         const val REQUEST_NAME_END: String = "_END_"
+        var nowtestCase: TestCase? = null
+        var nowCaseItem: CaseItem? = null
+
     }
 }

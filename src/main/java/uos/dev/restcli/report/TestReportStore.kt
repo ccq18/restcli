@@ -1,5 +1,7 @@
 package uos.dev.restcli.report
 
+import uos.dev.restcli.HttpRequestFilesExecutor
+
 object TestReportStore {
     var nextRequestName: String? = null
         private set
@@ -25,6 +27,7 @@ object TestReportStore {
         exception: String?,
         detail: String?
     ) {
+        HttpRequestFilesExecutor.nowCaseItem?.addTestReport(isPassed, exception, detail)
         val report = TestReport(
             name = name,
             isPassed = isPassed,
